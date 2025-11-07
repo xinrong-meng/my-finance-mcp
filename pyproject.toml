@@ -1,0 +1,17 @@
+[project]
+name = "my-finance-mcp"
+version = "0.1.0"
+description = "MCP server for financial data storage and RAG queries"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0.0",
+    "chromadb>=0.4.0",
+    "pandas>=2.0.0",
+]
+
+[project.scripts]
+my-finance-mcp = "my_finance_mcp:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
