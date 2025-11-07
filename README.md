@@ -1,16 +1,22 @@
-# My Finance MCP Server - Setup
+# My Finance MCP Server
 
-## Install
+Bare-bones Model Context Protocol server that lets Claude store personal finance transactions and later query them via semantic search. Transactions are persisted in ChromaDB for vector search plus a JSON ledger for backup.
+
+Run it alongside Claude Desktop and you get an AI bookkeeper that remembers your receipts, statements, and portfolios—then answers natural language questions about spending trends, allocations, or anything else you upload.
+
+## Setup
+
+### Install
 ```bash
 uv sync
 ```
 
-## Run
+### Run
 ```bash
 uv run my_finance_mcp.py
 ```
 
-## Configure Claude Desktop
+### Configure Claude Desktop
 Add to `~/.claude_desktop_config.json`:
 
 ```json
