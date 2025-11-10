@@ -37,11 +37,19 @@ Add to `~/.claude_desktop_config.json`:
 
 ## Usage
 
+Exposed tools:
+
+- `store_transactions(transactions)` – ingest structured transactions (Claude will extract them from uploaded docs)
+- `query_financial_history(query)` – run semantic search across everything stored
+- `list_transactions(limit=20, offset=0, category=None)` – page through the JSON ledger to inspect what’s saved and see each transaction’s index
+- `delete_transactions(indices=None, delete_all=False, confirm=False)` – delete entries by index or wipe them all (requires `confirm=True`)
+
 1. Upload financial data to Claude
 2. Say: "Store this transaction data" 
 3. Claude calls the MCP server to save it
 4. Later ask: "How much did I spend on groceries last month?"
 5. Claude searches your historical data via MCP
+6. Use "Show me the stored transactions" or "Delete transaction 3" to invoke the management tools
 
 ### Example Claude Desktop interaction
 ```
