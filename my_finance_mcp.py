@@ -7,7 +7,7 @@ Usage: uv run my_finance_mcp.py
 import json
 import os
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pathlib import Path
 
 import chromadb
@@ -22,6 +22,23 @@ DATA_DIR = Path(os.environ.get("MY_FINANCE_MCP_DIR", Path.home() / ".my_finance_
 DB_PATH = DATA_DIR / "financial_data"
 JSON_FILE = DATA_DIR / "transactions.json"
 DB_PATH.mkdir(parents=True, exist_ok=True)
+
+# Helper utilities
+
+def _load_transactions() -> List[Dict[str, Any]]:
+    if JSON_FILE.exists():
+        with JSON_FILE.open("r") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return []
+    return []
+
+
+def _save_transactions(transactions: List[Dict[str, Any]]) -> None:
+    JSON_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with JSON_FILE.open("w") as f:
+        json.dump(transactions, f, indent=2)
 
 # Global data
 chroma_client = chromadb.PersistentClient(path=str(DB_PATH))
@@ -66,16 +83,9 @@ def store_transactions(transactions: List[Dict[str, Any]]) -> str:
     )
     
     # Also save to JSON file
-    if JSON_FILE.exists():
-        with JSON_FILE.open('r') as f:
-            existing = json.load(f)
-    else:
-        existing = []
-
+    existing = _load_transactions()
     existing.extend(transactions)
-
-    with JSON_FILE.open('w') as f:
-        json.dump(existing, f, indent=2)
+    _save_transactions(existing)
     
     return f"Stored {len(transactions)} transactions successfully"
 
@@ -120,6 +130,101 @@ def query_financial_history(query: str) -> str:
         response = "No matching transactions found."
     
     return response
+
+
+@mcp.tool()
+def list_transactions(limit: int = 20, offset: int = 0, category: Optional[str] = None) -> Dict[str, Any]:
+    """
+    List stored transactions from the JSON ledger with optional pagination and filtering.
+
+    Args:
+        limit: Maximum number of transactions to return (default 20)
+        offset: Number of transactions to skip from the beginning (default 0)
+        category: Optional category filter (case-insensitive)
+
+    Returns:
+        Dictionary containing total count, pagination info, and transactions with index field
+    """
+    transactions = _load_transactions()
+
+    indexed: List[Dict[str, Any]] = []
+    for idx, txn in enumerate(transactions):
+        if category and str(txn.get("category", "")).lower() != category.lower():
+            continue
+        entry = dict(txn)
+        entry["index"] = idx
+        indexed.append(entry)
+
+    total = len(indexed)
+    sliced = indexed[offset: offset + limit]
+
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "transactions": sliced,
+        "has_more": offset + limit < total
+    }
+
+
+@mcp.tool()
+def delete_transactions(indices: Optional[List[int]] = None, delete_all: bool = False, confirm: bool = False) -> str:
+    """
+    Delete transactions from both the JSON ledger and ChromaDB.
+
+    Args:
+        indices: List of transaction indices (from list_transactions) to delete
+        delete_all: Set to true to delete all transactions
+        confirm: Must be true to actually perform deletion (safety guard)
+
+    Returns:
+        Status message describing the deletion result
+    """
+    if not confirm:
+        raise ValueError("Deletion aborted: set confirm=True to proceed.")
+
+    transactions = _load_transactions()
+
+    if delete_all:
+        deleted_count = len(transactions)
+        _save_transactions([])
+        try:
+            # Recreate the collection to ensure it is empty
+            global collection
+            chroma_client.delete_collection("transactions")
+            collection = chroma_client.get_or_create_collection("transactions")
+        except chromadb.errors.InvalidCollectionException:
+            pass
+        return f"Deleted {deleted_count} transactions." if deleted_count else "No transactions to delete."
+
+    if not indices:
+        raise ValueError("Provide indices to delete or set delete_all=True.")
+
+    indices_set = set(indices)
+    remaining: List[Dict[str, Any]] = []
+    removed: List[Dict[str, Any]] = []
+
+    for idx, txn in enumerate(transactions):
+        if idx in indices_set:
+            removed.append(txn)
+        else:
+            remaining.append(txn)
+
+    if not removed:
+        return "No transactions matched the provided indices."
+
+    _save_transactions(remaining)
+
+    # Remove matching entries from ChromaDB using metadata filters
+    for txn in removed:
+        metadata_filter = {k: v for k, v in txn.items() if isinstance(k, str)}
+        try:
+            collection.delete(where=metadata_filter)
+        except Exception:
+            # If metadata-based delete fails, ignore but keep JSON consistent
+            continue
+
+    return f"Deleted {len(removed)} transactions."
 
 
 if __name__ == "__main__":
