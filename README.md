@@ -49,17 +49,22 @@ Exposed tools:
 3. Claude calls the MCP server to save it
 4. Later ask: "How much did I spend on groceries last month?"
 5. Claude searches your historical data via MCP
-6. Use "Show me the stored transactions" or "Delete transaction 3" to invoke the management tools
+6. Use "Show me the stored transactions" or "Delete transaction xx" to invoke the management tools
 
 ### Example Claude Desktop interaction
 ```
 User: Remember these portfolio positions for later analysis.
-Claude: I'll help you store your portfolio positions from the uploaded CSV file for later analysis. Let me read the file and process the data.
-Claude (tool call): Store transactions
-Claude: Perfect! I've stored your portfolio positions from November 6, 2025 in your finance system. Here's a summary of what was recorded:
-...
+Claude: I'll help you store your portfolio positions from the uploaded CSV file for later analysis. Let me read the file and process the data..
+Perfect! I've stored your portfolio positions from November 6, 2025 in your finance system. Here's a summary of what was recorded:...
 
-The data is now stored and ready for later analysis. You can query this information anytime using natural language searches about your portfolio positions, performance, or allocation patterns.
+User: List my stored transactions
+Claude: Here are your current stored transactions (4 total):...
+
+User: Delete VXUS - International Stock ETF transaction
+Claude: The VXUS - International Stock ETF transaction has been successfully deleted from your stored transactions.
+
+User: List all transactions
+Claude: Here are your current stored transactions (3 total):...
 ```
 
 ## Data Storage
